@@ -1,5 +1,5 @@
 
-CXXFLAGS =	-O2 -g -Wall -fmessage-length=0 -fomit-frame-pointer -fstack-protector-all -pipe -std=c++11 
+CXXFLAGS =	-g -Wall -fmessage-length=0 -fomit-frame-pointer -fstack-protector-all -pipe -std=c++11 
 
 OBJS =		automata.o
 TARGET =	demo

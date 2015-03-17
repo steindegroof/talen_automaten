@@ -4,7 +4,26 @@
 
 
 int main(int argc, char *argv[]) {
+	for(int a = 1; a <argc; ++a){
+		AutomataParser parser(argv[a]);
+		std::string type = parser.getType();
+		std::vector<std::string> states = parser.getStates();
+		std::multimap<std::pair<std::string, char>, std::string> transitions = parser.getTransitionFunction();
+		std::vector<char> symbols = parser.getSymbols();
+		std::string startState = parser.getStartState();
+		std::vector<std::string> acceptStates = parser.getAcceptStates();
+		std::vector<std::string>::iterator i;
 
+		ENFA automaton;
+		automaton.setStates(states);
+		automaton.setSymbols(symbols);
+		automaton.setStartState(startState);
+		automaton.setAcceptStates(acceptStates);
+		automaton.setTransitionFunction(transitions); 
+
+		std::cout << "The regex for this DFA (" << argv[a] <<") is: " << convertToRegex(automaton) << std::endl;
+	}
+	/*
     AutomataParser parser("test.fa");
     std::string type = parser.getType();
     std::vector<std::string> states = parser.getStates();
@@ -84,7 +103,7 @@ int main(int argc, char *argv[]) {
     outputfile5.close();
     std::ofstream outputfile6("nfa.gv");
     outputfile6 << nfa;
-    outputfile6.close();
+    outputfile6.close();*/
 
 
     return 0;

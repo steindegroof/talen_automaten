@@ -5,6 +5,8 @@
 #include <iostream>
 #include <algorithm>
 #include "automata.h"
+#include <sstream>
+#include <assert.h>
 
 // HELPER FUNCTIONS //////////////////////////////////////////////////////////////
 
@@ -227,6 +229,9 @@ std::vector<std::string> Automaton::getStates() const {
 // return a vector with the accept states of the automaton
 std::vector<std::string> Automaton::getAcceptStates() const {
     return this->acceptStates;
+}
+std::multimap<std::pair<std::string, char>, std::string> Automaton::getTransitionFunction(){
+	return this->transitionFunction;
 }
 // return the states reached by inputting a given symbol from the given state
 std::vector<std::string> Automaton::delta(std::string state, char symbol) const {
@@ -759,4 +764,447 @@ Automaton AutomataParser::makeAutomaton() {
     }
     std::cerr << "Unknown type of automaton; returning empty object." << std::endl;
     return *automaton;
+}
+
+//Christophe:
+//REGEX -> DFA (via State Elimination)
+void printVector(std::vector<std::string> vector){
+	std::vector<std::string>::iterator it;
+	std::cout << "This vector contains:" << std::endl;
+	for( it = vector.begin(); it!=vector.end(); it++){
+		std::cout << *it << std::endl;
+	}
+	std::cout << std::endl;
+}
+
+std::multimap<std::pair<std::string, std::string>, std::string> convertTransitionFunction(std::multimap<std::pair<std::string, char>, std::string> transitionFunction){
+	std::multimap<std::pair<std::string, std::string>, std::string> newTransitionFunction;
+	std::multimap<std::pair<std::string, char>, std::string>::iterator it;
+	for( it = transitionFunction.begin(); it!=transitionFunction.end(); it++){
+		std::pair<std::string,char> x = it->first;
+		std::string p1 = std::get<0>(x);
+		char p2 = std::get<1>(x);
+		std::string p3;
+		std::stringstream ss;
+		ss << p2;
+		ss >> p3;
+		//transitionfunction.insert(std::pair<std::pair<std::string, char>, std::string>(arrow, state2));
+		std::pair<std::string,std::string> paartje (p1,p3);
+		newTransitionFunction.insert(std::pair<std::pair<std::string,std::string>,std::string>(paartje,it->second));
+	}
+	return newTransitionFunction;
+}
+
+void printTransitionFunction(std::multimap<std::pair<std::string, std::string>, std::string> t){
+	std::multimap<std::pair<std::string, std::string>, std::string>::iterator it;
+	for(it = t.begin(); it!= t.end(); it++){
+		std::pair<std::string,std::string> paar = it->first;
+		std::string eindstaat = it->second;
+		std::string beginstaat = std::get<0>(paar);
+		std::string regex = std::get<1>(paar);
+		std::cout << "beginstaat:" << beginstaat <<" ,regex:" << regex << " ,eindstaat:" << eindstaat << std::endl;
+	}
+}
+
+struct Pos{
+	int beginhaak;
+	int lengte;
+	Pos(int begin,int l){
+		beginhaak = begin;
+		lengte = l;
+	}
+};
+
+std::string simplify_base_case(std::string s){ //alleen maar haakjes binnenkrijgen
+	//std::cout << "base case is:" << s << std::endl;
+	int length = 0;
+	std::string::iterator it;
+	for( it = s.begin(); it!= s.end(); it++){
+		length++;
+	}
+	if(length == 3){ // + moet " " worden
+		if(s.substr(1,1) != "+"){
+			return s.substr(1,1);
+		}
+		else{
+			return " ";
+		}
+	}
+	else{ //langer dan (x)
+		//std::size_t found = s.find(" ");
+		//std::cout << "gevonden op: " << found << std::endl;
+		while(true){
+			int position = 0;
+			bool stop = true;
+			for( it = s.begin(); it!= s.end(); it++){
+				if(*it == ' '){
+					std::string::iterator it2;
+					int l = 0;
+					int haakjesrechts = 0;
+					for(it2 = it; it2!=s.end(); it2++){ //naar rechtse einde zoeken.
+						if(*it2 == ')' ){
+							if(haakjesrechts == 0){
+								break;
+							}
+							else{
+								haakjesrechts--;
+							}
+						}
+						else if(*it2 == '(' ){
+							haakjesrechts++;
+						}
+						else if(*it2 == '+' && haakjesrechts == 0){
+							l++; //want dan nemen we de + mee weg.
+							break;
+						}
+						l++;
+					}
+					//als we breaken met position en lengte verder werken.
+					int lengte = l;
+					//std::cout << "position = " << position << "en lengte = " << l << std::endl;
+					//std::cout << "we hebben nu " << s.substr(begin,lengte) << std::endl;
+					l = 0;
+					int haakjeslinks = 0;
+					for(it2 = it; it2 != s.begin(); it2--){ //naar linkse einde zoeken.
+						if(*it2 == '(' ){
+							if(haakjeslinks == 0){
+								break;
+							}
+							else{
+								haakjeslinks--;
+							}
+						}
+						else if(*it2 == ')' ){
+							haakjeslinks++;
+						}
+						else if(*it2 == '+' && haakjeslinks == 0){
+							l++; //want dan nemen we de + mee weg.
+							break;
+						}
+						l++;
+					}
+					int negatieve_lengte = l;
+					//std::cout << "we select: " << s.substr(position-negatieve_lengte+1,negatieve_lengte+lengte-1) << std::endl;
+					//we gaan het nu verwijderen:
+					s.replace(position-negatieve_lengte+1,negatieve_lengte+lengte-1,"");
+					stop = false;
+					break;
+				}
+				position++;
+			}
+			if(stop){
+				break; //break dor de while(true);
+			}
+		}
+	}
+	return s; //niets doen
+}
+
+std::vector<Pos> simplify_2(std::string s){
+	std::vector<Pos> pairs;
+	std::vector<int> stack; //hier slaan we posities '(' in op
+	std::string::iterator s_it;
+	int pos = 0;
+	for(s_it = s.begin(); s_it != s.end(); s_it++){
+		if(*s_it == '('){
+			stack.push_back(pos);
+		}
+		if(*s_it == ')'){
+			int eerstehaak = stack.back();
+			Pos paar = Pos(eerstehaak,pos-eerstehaak+1);
+			pairs.push_back(paar);
+			stack.pop_back();
+		}
+		pos++;
+	}
+	//de paren zijn nu opgebouwd
+	/*
+	std::vector<Pos>::iterator pos_it;
+	for(pos_it = pairs.begin(); pos_it!=pairs.end();pos_it++){
+		Pos i = *pos_it;
+		std::string input = s.substr(i.beginhaak,i.lengte);
+		std::cout << input << std::endl;
+	}*/
+	return pairs;
+}
+
+std::string simplify_parentheses(std::string s){
+	while(true){
+		//std::cout << "ik krijg binnen:" << s << std::endl;
+		int length = 0;
+		std::string::iterator it;
+		for( it = s.begin(); it!= s.end(); it++){
+			length++;
+		}
+		bool done = true;
+		std::vector<Pos> pairs = simplify_2(s);
+		std::vector<Pos>::iterator p_it;
+		for(p_it = pairs.begin(); p_it != pairs.end(); p_it++){
+			std::string left;
+			std::string right;
+			Pos i = *p_it;
+			if(i.beginhaak == 0){
+				left = "";
+			}
+			else{
+				left = s.substr(i.beginhaak-1,1); //links van haak
+				//std::cout << "left: " << left << std::endl;
+			}
+			if(i.beginhaak+i.lengte == length){
+				right = "";
+			}
+			else{
+				right = s.substr(i.beginhaak+i.lengte,1); //rechts van haak
+				//std::cout << "right: " << right << std::endl;
+			}
+			if( (left == ")") || (right == "(" || right == "*")){
+				//dan mag het niet
+			}
+			else{
+				s.replace(i.beginhaak,i.lengte,s.substr(i.beginhaak+1,i.lengte-2));
+				done = false;
+				break;
+			}
+		}
+		if(done){
+			break;
+		}
+	}
+	return s;
+}
+
+std::string simplify(std::string s){
+	while(true){
+		std::string::iterator start;
+		start = s.begin();
+		if(*start == '+'){
+			s.replace(0,1,"");
+		}
+		std::string toReplace1 = "( )*";
+		std::size_t found = s.find(toReplace1);
+		while(found != std::string::npos){
+			s.replace(found,toReplace1.length(),"");
+			found = s.find(toReplace1);
+		}
+		std::string toReplace2 = "()*";
+		std::size_t found2 = s.find(toReplace2);
+		while(found2 != std::string::npos){
+			s.replace(found2,toReplace2.length(),"");
+			found2 = s.find(toReplace2);
+		}
+		//einde zoeken en elimineren ( )*
+		std::vector<Pos> pairs = simplify_2(s); //we hebben nu de pairs
+		std::vector<Pos>::iterator p_it;
+		std::string output;
+		bool done_something = false;
+		for(p_it = pairs.begin(); p_it != pairs.end(); p_it++){
+			Pos i = *p_it;
+			std::string input = s.substr(i.beginhaak,i.lengte);
+			output = simplify_base_case(input);
+			if(input != output){
+				s.replace(i.beginhaak,i.lengte,output);
+				done_something = true;
+				break;
+			}
+		}
+		if(!done_something){
+			break;
+		}
+	}
+	//nu hebben we enkel nog overtollige haakjes
+	return s;
+}
+
+void eliminateState(std::string s,std::multimap<std::pair<std::string, std::string>, std::string>& regexTransitionFunction){
+//eliminate this state.
+	//bereken alle q's, states die een pijl naar de te elimineren staat hebben.
+	std::vector<std::pair<std::string,std::string>> Q; //bevat vertrekstaat met regex
+	std::vector<std::pair<std::string,std::string>> P; //(staat,regex)
+	std::vector<std::string> S; //(regex) staat is toch altijd naar zichzelf (s)
+	std::multimap<std::pair<std::string, std::string>, std::string>::iterator it2;
+	for(it2 = regexTransitionFunction.begin(); it2!=regexTransitionFunction.end(); it2++){
+		std::pair<std::string,std::string> pair = it2->first;
+		std::string vertrekstaat = std::get<0>(pair);
+		std::string regex = std::get<1>(pair);
+		std::string eindstaat = it2->second;
+		if(eindstaat == s && vertrekstaat!=s){ //s mag geen q zijn!
+			Q.push_back(std::pair<std::string,std::string>(vertrekstaat,regex));
+		}
+		else if(vertrekstaat == s){
+			if(eindstaat == s){ //lus naar zichzelf, s
+				S.push_back(regex);
+			}
+			else{ //vanuit s naar ergens anders (p dus)
+				P.push_back(std::pair<std::string,std::string>(eindstaat,regex)); //met een regex ga je naar een eindstaat (volgorde!!)
+			}
+		}
+	}
+	//nu hebben we normaal alle pijlen van en naar s
+	std::vector<std::pair<std::string,std::string>>::iterator Qit;
+	for(Qit = Q.begin(); Qit != Q.end(); Qit++){
+		std::vector<std::pair<std::string,std::string>>::iterator Pit;
+		for(Pit = P.begin(); Pit != P.end(); Pit++){
+			//now get the regex between Q and P if it exists.
+			std::string QtoP = ""; //standaard lege taal Rij(boek) lees r,i,j
+			std::multimap<std::pair<std::string, std::string>, std::string>::iterator it2; //onnodige lijn?
+			std::vector<std::pair<std::string,std::string>> toDelete;
+			for(it2 = regexTransitionFunction.begin(); it2!=regexTransitionFunction.end(); it2++){
+				std::pair<std::string,std::string> pair = it2->first;
+				std::string vertrekstaat = std::get<0>(pair);
+				std::string regex = std::get<1>(pair);
+				std::string eindstaat = it2->second;
+				if(vertrekstaat == std::get<0>(*Qit) && eindstaat == std::get<0>(*Pit)){
+					QtoP = regex; //stel de regex gelijk aan de pijl
+					toDelete.push_back(pair); //en verwijder deze pijl want we gaan hem verbeteren met regex
+				}
+			}
+			std::vector<std::pair<std::string,std::string>>::iterator crzy;
+			for(crzy = toDelete.begin(); crzy != toDelete.end(); crzy++){
+				regexTransitionFunction.erase(*crzy);
+			}
+			toDelete.clear();
+			//nu kan het zijn dat we R,i,j gevonden hebben (QtoP)
+			// we gaan deze pijlen toeveogen aan transitiefunctie
+			std::string newregex = "";
+			if(QtoP != ""){
+				newregex = "("+QtoP+")"+"+";
+			}
+			newregex += std::get<1>(*Qit);
+			std::vector<std::string>::iterator Sit;
+			std::string Sregex = "";
+			for(Sit = S.begin(); Sit!=S.end();Sit++){
+				if(Sit != S.begin()){
+					Sregex += "+";
+				}
+				Sregex += *Sit;
+			}
+			if(S.size() == 0){ //loop was vruchteloos, we hebben de lege taal
+				Sregex = " ";
+			}
+			newregex += "("+Sregex+")*"; // pas op! kan leeg worden
+			newregex += std::get<1>(*Pit);
+			//regex is compleet, maar nu moeten we hem mss nog vereenvoudigen.
+			newregex = simplify(newregex);
+			std::pair<std::string,std::string> start_en_regex (std::get<0>(*Qit),newregex);
+			regexTransitionFunction.insert(std::pair<std::pair<std::string,std::string>,std::string>(start_en_regex,std::get<0>(*Pit)));
+		}
+	}
+	//nu hebben we alle nieuwe pijlen gezet. Nu kunnen we S verwijderen samen met al de pijlen van en naar s.
+	std::vector<std::pair<std::string,std::string>> toDelete;
+	std::multimap<std::pair<std::string, std::string>, std::string>::iterator st;
+	for(st = regexTransitionFunction.begin(); st!=regexTransitionFunction.end(); st++){
+		std::pair<std::string,std::string> pair = st->first;
+		std::string vertrekstaat = std::get<0>(pair);
+		std::string regex = std::get<1>(pair);
+		std::string eindstaat = st->second;
+		if(vertrekstaat == s || eindstaat == s){ //verwijder dit element
+			toDelete.push_back(pair);
+		}/*
+		else{
+			std::cout<<"ik verwijder niet want:" << vertrekstaat << " en " << eindstaat << std::endl;
+		}*/
+	}
+	std::vector<std::pair<std::string,std::string>>::iterator crzy;
+	for(crzy = toDelete.begin(); crzy != toDelete.end(); crzy++){
+		regexTransitionFunction.erase(*crzy);
+	}
+	toDelete.clear();
+	//alles in transitietabel van s is nu weg.
+}
+
+
+std::string convertToRegex(Automaton a){ //the automaton can be a DFA
+	std::string regex = "";
+	std::vector<char> symbols = a.getSymbols();
+	std::vector<std::string> states = a.getStates();
+	std::string startState = a.getStartState();
+	std::vector<std::string> acceptStates = a.getAcceptStates();
+	//We gaan bereken welke states geen begin of eindstaat zijn. Deze gaan we straks eerst elimineren
+	std::vector<std::string> intermediateStates;
+	std::vector<std::string>::iterator it;
+	for(it = states.begin(); it != states.end(); ++it){
+		std::vector<std::string>::iterator it2;
+		bool found_in_acceptstates = false;
+		for(it2 = acceptStates.begin(); it2!=acceptStates.end(); ++it2){
+			if(*it == *it2){
+				found_in_acceptstates = true;
+			}
+		}
+		if(*it != startState && !found_in_acceptstates){
+			intermediateStates.push_back(*it);
+		}		
+	}
+	//printVector(intermediateStates);
+
+	std::multimap<std::pair<std::string, char>, std::string> transitionFunction = a.getTransitionFunction();
+	std::multimap<std::pair<std::string, std::string>, std::string> regexTransitionFunction = convertTransitionFunction(transitionFunction);//nieuwe transitiefunctie.
+
+	//printTransitionFunction(regexTransitionFunction);
+	for(it = intermediateStates.begin(); it!=intermediateStates.end(); it++){
+		//eliminate this state.
+		std::string s = *it;
+		eliminateState(s,regexTransitionFunction);
+	}
+	//printTransitionFunction(regexTransitionFunction);
+	//nu moeten we elke acceptoestand als enige overhouden met de begintoestand.
+	//we slaan even de transitiefunctie op zoals ze nu is.
+	std::multimap<std::pair<std::string, std::string>, std::string> backup_regexTransitionFunction = regexTransitionFunction;
+	std::vector<std::string> acceptStates_w_this;
+	for(it = acceptStates.begin(); it != acceptStates.end(); it++){
+		std::vector<std::string>::iterator fill_it;
+		for(fill_it = acceptStates.begin(); fill_it != acceptStates.end(); fill_it++){
+			if(*fill_it != *it){
+				acceptStates_w_this.push_back(*fill_it); //moet gecleared worden na loop!!!
+			}
+		}
+		//printVector(acceptStates_w_this);
+		//acceptStates_w_this bevat nu alle acceptstates buiten de huidige acceptstate waarvoor we willen kijken.
+		for(fill_it = acceptStates_w_this.begin(); fill_it != acceptStates_w_this.end(); fill_it++){
+			eliminateState(*fill_it,regexTransitionFunction);
+		}
+		//nu zijn ze allemaal weg buiten de acceptstate en mss nog de beginstate.
+		std::multimap<std::pair<std::string, std::string>, std::string>::iterator map_it;
+		if(*it == startState){ //speciaal geval R*
+			assert(regexTransitionFunction.size() == 1);
+			for(map_it = regexTransitionFunction.begin(); map_it != regexTransitionFunction.end(); map_it++){
+				std::pair<std::string,std::string> pair = map_it->first;
+				std::string Rregex = std::get<1>(pair);
+				regex += "+("+Rregex+")*"; //R*
+			}
+		}
+		else{ //two state automaton
+			std::string R = " "; //allemaal de lege taal by default
+			std::string S = " ";
+			std::string T = " ";
+			std::string U = " ";
+			for(map_it = regexTransitionFunction.begin(); map_it != regexTransitionFunction.end(); map_it++){
+				std::pair<std::string,std::string> pair = map_it->first;
+				std::string vertrekstaat = std::get<0>(pair);
+				std::string Rregex = std::get<1>(pair);
+				std::string eindstaat = map_it->second;
+				if(vertrekstaat == startState && eindstaat == startState){
+					R = Rregex;
+				}
+				else if(vertrekstaat == startState && eindstaat == *it){
+					S = Rregex;
+				}
+				else if(vertrekstaat == *it && eindstaat == *it){
+					U = Rregex;
+				}
+				else if(vertrekstaat == *it && eindstaat == startState){
+					T = Rregex;
+				}
+			}
+			//we hebben nu R,S,T en U. Nu gaan we regex bouwen
+			regex += "+((("+R+")+("+S+")("+U+")*("+T+"))*("+S+")("+U+")*"+")";
+			regex = simplify(regex);
+		}
+		//alles klaar voor deze optie, nu alles herstellen
+		acceptStates_w_this.clear();
+		regexTransitionFunction = backup_regexTransitionFunction;
+	}
+
+	//std::cout << simplify("a+b+( )*+b+( )*");
+	regex = simplify_parentheses(regex);
+	return regex;
 }

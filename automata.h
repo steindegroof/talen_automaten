@@ -26,7 +26,6 @@ const char epsilon = 'E';
 // append vectors
 void mergeVector(std::vector<std::string>&, const std::vector<std::string>&);
 
-
 // class representing na abstract automaton
 class Automaton {
     protected:
@@ -69,6 +68,8 @@ class Automaton {
         std::vector<std::string> getStates() const;
         // return a vector with all the accept states in the automaton
         std::vector<std::string> getAcceptStates() const;
+		//return the multimap from the transition function
+		std::multimap<std::pair<std::string, char>, std::string> getTransitionFunction();
         void setStates(std::vector<std::string>);
         void setSymbols(std::vector<char>);
         void setTransitionFunction(std::multimap<std::pair<std::string, char>, std::string>);
@@ -146,5 +147,7 @@ class AutomataParser {
        
 };
 
+void printVector(std::vector<std::string>);
+std::string convertToRegex(Automaton);
 
 #endif
