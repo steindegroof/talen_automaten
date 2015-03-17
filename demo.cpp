@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
 		std::vector<std::string> acceptStates = parser.getAcceptStates();
 		std::vector<std::string>::iterator i;
 
-		ENFA automaton;
+		DFA automaton;
 		automaton.setStates(states);
 		automaton.setSymbols(symbols);
 		automaton.setStartState(startState);
