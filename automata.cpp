@@ -469,6 +469,19 @@ void ENFA::convertToDFA(DFA& dfa) {
 
 }
 
+std::pair<std::string, std::string> ENFA::concatenate(std::pair<std::string, std::string> part1,
+                                                       std::pair<std::string, std::string> part2) {
+    std::string newstart = this->generateStateName();
+    this->addState(newstart);
+    std::string newend = this->generateStateName();
+    this->addState(newend);
+    this->addTransition(std::make_pair(newstart, epsilon), part1.first);
+    this->addTransition(std::make_pair(newstart, epsilon), part2.first);
+    this->addTransition(std::make_pair(newend, epsilon), part1.second);
+    this->addTransition(std::make_pair(newend, epsilon), part2.second);
+    return std::make_pair(newstart, newend);
+}
+
 //////////////////////////////////////////////////////////////////////////////////
 /// AUTOMATAPARSER CLASS /////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
