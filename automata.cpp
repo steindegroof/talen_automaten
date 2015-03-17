@@ -469,7 +469,7 @@ void ENFA::convertToDFA(DFA& dfa) {
 
 }
 
-std::pair<std::string, std::string> ENFA::concatenate(std::pair<std::string, std::string> part1,
+std::pair<std::string, std::string> ENFA::unionize(std::pair<std::string, std::string> part1,
                                                        std::pair<std::string, std::string> part2) {
     std::string newstart = this->generateStateName();
     this->addState(newstart);

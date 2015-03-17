@@ -117,8 +117,8 @@ class ENFA: public NFA {
         std::vector<std::string> getClosure(std::string) const;
         // returns an equivalent DFA
         void convertToDFA(DFA&);
-        // concatenate two partial ENFAs by connecting their start and end states
-        std::pair<std::string, std::string> concatenate(std::pair<std::string, 
+        // take the union of two partial ENFAs by connecting their start and end states
+        std::pair<std::string, std::string> unionize(std::pair<std::string, 
                                  std::string>, std::pair<std::string, std::string>);
 
 };
