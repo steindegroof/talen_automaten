@@ -319,6 +319,16 @@ std::string NFA::generateStateName(std::vector<std::string> states) {
         return states[0];
     }
 }
+// generates a new state name that doesn't exist yet in the NFA 
+std::string NFA::generateStateName() {
+    int iname = 0;
+    std::string name = std::to_string(iname);
+    do {
+	std::string name = std::to_string(iname);
+        iname++;
+    } while (this->hasState(name));
+    return name;
+}
 // generate a name for a dead state, based on the const deadstatename, 
 // but avoiding existing state nams
 std::string NFA::generateDeadStateName() {

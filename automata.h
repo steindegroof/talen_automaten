@@ -88,6 +88,8 @@ class NFA: public Automaton {
     protected:
         // generates a new unique state name for a vector of state names
         std::string generateStateName(std::vector<std::string>);
+        // generates a new state name that doesn't exist yet (simple integers going up)
+        std::string generateStateName();
         // generate a name for a dead state, based on the const deadstatename, 
         // but avoiding existing state nams
         std::string generateDeadStateName();
