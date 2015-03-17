@@ -120,6 +120,9 @@ class ENFA: public NFA {
         // take the union of two partial ENFAs by connecting their start and end states
         std::pair<std::string, std::string> unionize(std::pair<std::string, 
                                  std::string>, std::pair<std::string, std::string>);
+        std::pair<std::string, std::string> concatenate(std::pair<std::string, 
+                       std::string> part1, std::pair<std::string, std::string> part2);
+        std::pair<std::string, std::string> star(std::pair<std::string, std::string>);
 
 };
 

@@ -481,6 +481,22 @@ std::pair<std::string, std::string> ENFA::unionize(std::pair<std::string, std::s
     this->addTransition(std::make_pair(newend, epsilon), part2.second);
     return std::make_pair(newstart, newend);
 }
+std::pair<std::string, std::string> ENFA::concatenate(std::pair<std::string, std::string> part1,
+                                                       std::pair<std::string, std::string> part2) {
+    this->addTransition(std::make_pair(part1.second, epsilon), part2.first);
+    return std::make_pair(part1.first, part2.second);
+}
+std::pair<std::string, std::string> ENFA::star(std::pair<std::string, std::string> part) {
+    std::string newstart = this->generateStateName();
+    this->addState(newstart);
+    std::string newend = this->generateStateName();
+    this->addState(newend);
+    this->addTransition(std::make_pair(newstart, epsilon), part.first);
+    this->addTransition(std::make_pair(newstart, epsilon), newend);
+    this->addTransition(std::make_pair(part.second, epsilon), part.first);
+    this->addTransition(std::make_pair(part.second, epsilon), newend);
+    return std::make_pair(newstart, newend);
+}
 
 //////////////////////////////////////////////////////////////////////////////////
 /// AUTOMATAPARSER CLASS /////////////////////////////////////////////////////////
